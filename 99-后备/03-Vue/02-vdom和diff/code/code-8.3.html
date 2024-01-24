@@ -1,0 +1,105 @@
+<div id="app"></div>
+
+<div data-a="3" mmm="asdf" draggable="true"></div>
+
+<form id="aaa"></form>
+<input value="aaa" form="aaa" />
+
+<script src="https://unpkg.com/@vue/reactivity@3.0.5/dist/reactivity.global.js"></script>
+<script>
+
+function createRenderer(options) {
+  const { createElement, insert, setElementText, patchProps } = options
+
+  function render(vnode, container) {
+		if (vnode) {
+      // 新 vnode 存在，将其与旧 vnode 一起传递给 patch函数进行打补丁
+      patch(container._vnode, vnode, container)
+    } else {
+      if (container._vnode) {
+        // 旧 vnode 存在，且新 vnode不存在，说明是卸载(unmount)操作
+        // 只需要将 container 内的 DOM 清空即可
+        container.innerHTML = ''
+      }
+    }
+    // 把 vnode 存储到 container._vnode 下，即后续渲染中的旧 vnode
+    container._vnode = vnode
+  }
+
+  function patch(oldVnode, newVnode, container) {
+    if (!oldVnode) {
+      mountElement(newVnode, container)
+    } else {
+      // todo
+    }
+  }
+
+  function mountElement(vnode, container) {
+    const el = createElement(vnode.type)
+    
+    if (typeof vnode.children === 'string') {
+      setElementText(el, vnode.children)
+    } else if (Array.isArray(vnode.children)) {
+      vnode.children.forEach(child => {
+        patch(null, child, el)
+      })
+    }
+    if (vnode.props) {
+      for (const key in vnode.props) {
+        patchProps(el, key, null, vnode.props[key])
+      }
+    }
+
+    insert(el, container)
+  }
+
+  return {
+    render
+  }
+}
+
+function shouldSetAsProps(el, key, value) {
+  // 特殊处理 只读的el.form, 对应标签为<input form="form1" />
+  if (key === 'form' && el.tagName === 'INPUT') return false
+  // 用in操作符判断 key是否存在对应的 DOM Properties
+  return key in el
+}
+
+const renderer = createRenderer({
+  createElement(tag) {
+    return document.createElement(tag)
+  },
+  setElementText(el, text) {
+    el.textContent = text
+  },
+  insert(el, parent, anchor = null) {
+    parent.insertBefore(el, anchor)
+  },
+
+  // 将属性设置相关操作封装到 patchProps函数中，并作为渲染器选项传递
+  patchProps(el, key, preValue, nextValue) {
+    if (shouldSetAsProps(el, key, nextValue)) {
+      const type = typeof el[key]
+      if (type === 'boolean' && nextValue === '') {
+        el[key] = true
+      } else {
+        el[key] = nextValue
+      }
+    } else {
+      el.setAttribute(key, nextValue)
+    }
+  }
+})
+
+
+const vnode = {
+  type: 'button',
+  props: {
+    disabled: ''
+  },
+  children: 'Button'
+}
+
+renderer.render(vnode, document.querySelector('#app'))
+
+</script>

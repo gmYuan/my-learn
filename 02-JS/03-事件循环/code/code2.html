@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>事件循环</title>
+</head>
+<body style="border: 1px solid red; height: 100vh;"></body>
+
+<script>
+  document.body.addEventListener('click', () => {
+    console.log('task1')
+    Promise.resolve().then(() => {console.log('mic1')})
+  })
+
+  document.body.addEventListener('click', () => {
+    console.log('task2')
+    Promise.resolve().then(() => {console.log('mic2')})
+  })
+
+  document.body.click()
+</script>
+</html>

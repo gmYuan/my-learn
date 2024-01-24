@@ -1,0 +1,201 @@
+<div id="app"></div>
+
+<!-- <script src="https://unpkg.com/@vue/reactivity@3.0.5/dist/reactivity.global.js"></script> -->
+<script>
+
+function shouldSetAsProps(el, key, value) {
+  if (key === 'form' && el.tagName === 'INPUT') return false
+  return key in el
+}
+
+function createRenderer(options) {
+  const {
+    createElement,
+    insert,
+    setElementText,
+    patchProps
+  } = options
+
+  function render(vnode, container) {
+    if (vnode) {
+      // 新 vnode 存在，将其与旧 vnode 一起传递给 patch 函数进行打补丁
+      patch(container._vnode, vnode, container)
+    } else {
+      if (container._vnode) {
+        // 旧 vnode 存在，且新 vnode 不存在，说明是卸载(unmount)操作
+        unmount(container._vnode)
+      }
+    }
+    // 把 vnode 存储到 container._vnode 下，即后续渲染中的旧 vnode
+    container._vnode = vnode
+  }
+  
+  function patch(oldVnode, newVnode, container) {
+    if (oldVnode && oldVnode.type !== newVnode.type) {
+      unmount(oldVnode)
+      oldVnode = null
+    }
+
+    const { type } = newVnode
+
+    if (typeof type === 'string') {
+      if (!oldVnode) {
+        mountElement(newVnode, container)
+      } else {
+        patchElement(oldVnode, newVnode)
+      }
+    } else if (typeof type === 'object') {
+      // 组件
+    }
+  }
+
+  function mountElement(vnode, container) {
+    const el = vnode.el = createElement(vnode.type)
+
+    if (typeof vnode.children === 'string') {
+      setElementText(el, vnode.children)
+    } else if (Array.isArray(vnode.children)) {
+      vnode.children.forEach(child => {
+        patch(null, child, el)
+      })
+    }
+
+    if (vnode.props) {
+      for (const key in vnode.props) {
+        patchProps(el, key, null, vnode.props[key])
+      }
+    }
+
+    insert(el, container)
+  }
+
+  function patchElement(oldVnode, newVnode) {
+    const el = newVnode.el = oldVnode.el
+    const oldProps = oldVnode.props
+    const newProps = newVnode.props
+    
+    for (const key in newProps) {
+      if (newProps[key] !== oldProps[key]) {
+        patchProps(el, key, oldProps[key], newProps[key])
+      }
+    }
+    for (const key in oldProps) {
+      if (!(key in newProps)) {
+        patchProps(el, key, oldProps[key], null)
+      }
+    }
+  }
+
+  function unmount(vnode) {
+    const parent = vnode.el.parentNode
+    if (parent) {
+      parent.removeChild(vnode.el)
+    }
+  }
+ 
+  return {
+    render
+  }
+}
+
+const renderer = createRenderer({
+  createElement(tag) {
+    return document.createElement(tag)
+  },
+  setElementText(el, text) {
+    el.textContent = text
+  },
+  insert(el, parent, anchor = null) {
+    parent.insertBefore(el, anchor)
+  },
+
+  patchProps(el, key, prevValue, nextValue) {
+    // 特殊处理 事件属性
+    if (/^on/.test(key)) {
+      const invokers = el._vei || (el._vei = {})
+      // 根据事件名称获取 invoker
+      let invoker = invokers[key]
+     // 根据属性名称得到对应的事件名称，例如 onClick ---> click
+      const name = key.slice(2).toLowerCase()
+      if (nextValue) {
+        // 如果没有 invoker，则将一个伪造的invoker 缓存到 el._vei 中
+        if (!invoker) {
+          // 当伪造的事件处理函数执行时，会执行真正的事件处理函数
+          invoker = el._vei[key] = (e) => {
+            // 如果事件处理函数绑定的时间 晚于 事件触发发生的时间，则不执行事件处理函数
+            if (e.timeStamp < invoker.attached) return
+
+            if (Array.isArray(invoker.value)) {
+              invoker.value.forEach(fn => fn(e))
+            } else {
+              invoker.value(e)
+            }
+          }
+          // 将真正的事件处理函数赋值给 invoker.value
+          invoker.value = nextValue
+          // 添加 invoker.attached 属性，存储事件处理函数被绑定的时间
+          invoker.attached = performance.now()
+
+          // 绑定 invoker 作为事件处理函
+          el.addEventListener(name, invoker)
+        } else {
+          //如果 invoker存在，意味着更新，并且只需要更新 invoker.value的值即可
+          invoker.value = nextValue
+        }
+       // 新的事件绑定函数不存在，且之前绑定的invoker存在，则移除绑定  
+      } else if (invoker) {
+        el.removeEventListener(name, invoker)
+      }
+      
+    // 特殊处理 class属性
+    } else if (key === 'class') {
+      el.className = nextValue || ''
+    } else if (shouldSetAsProps(el, key, nextValue)) {
+      const type = typeof el[key]
+       // 特殊处理 布尔类型的DOM Properties
+      if (type === 'boolean' && nextValue === '') {
+        el[key] = true
+      } else {
+        el[key] = nextValue
+      }
+    } else {
+      el.setAttribute(key, nextValue)
+    }
+  }
+})
+
+
+const vnode = {
+  type: 'p',
+  props: {
+    onClick: [
+      () => {
+        alert('clicked 1')
+      },
+      () => {
+        alert('clicked 2')
+      }
+    ]
+  },
+  children: 'text'
+}
+renderer.render(vnode, document.querySelector('#app'))
+
+
+// const newVnode = {
+//   type: 'p',
+//   props: {
+//     onContextmenu: () => {
+//       alert('contextmenu')
+//     }
+//   },
+//   children: 'text'
+// }
+// setTimeout(() => {
+//   renderer.render(newVnode, document.querySelector('#app'))
+//   console.log('update')
+// }, 3000)
+
+
+
+</script>

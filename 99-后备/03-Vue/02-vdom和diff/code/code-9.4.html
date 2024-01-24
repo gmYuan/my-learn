@@ -1,0 +1,289 @@
+<div id="app"></div>
+
+<!-- <script src="https://unpkg.com/@vue/reactivity@3.0.5/dist/reactivity.global.js"></script> -->
+<script>
+
+function shouldSetAsProps(el, key, value) {
+  if (key === 'form' && el.tagName === 'INPUT') return false
+  return key in el
+}
+
+function createRenderer(options) {
+  const {
+    createElement,
+    insert,
+    setElementText,
+    patchProps,
+    createText,
+    setText
+  } = options
+
+  function render(vnode, container) {
+    if (vnode) {
+      // 新 vnode 存在，将其与旧 vnode 一起传递给 patch 函数进行打补丁
+      patch(container._vnode, vnode, container)
+    } else {
+      if (container._vnode) {
+        // 旧 vnode 存在，且新 vnode 不存在，说明是卸载(unmount)操作
+        unmount(container._vnode)
+      }
+    }
+    // 把 vnode 存储到 container._vnode 下，即后续渲染中的旧 vnode
+    container._vnode = vnode
+  }
+  
+  function patch(oldVnode, newVnode, container) {
+    if (oldVnode && oldVnode.type !== newVnode.type) {
+      unmount(oldVnode)
+      oldVnode = null
+    }
+
+    const { type } = newVnode
+
+    if (typeof type === 'string') {
+      if (!oldVnode) {
+        mountElement(newVnode, container)
+      } else {
+        patchElement(oldVnode, newVnode)
+      }
+    } else if (type === Text) {
+      if (!oldVnode) {
+        const el = newVnode.el = createText(newVnode.children)
+        insert(el, container)
+      } else {
+        const el = newVnode.el = oldVnode.el
+        if (newVnode.children !== oldVnode.children) {
+          setText(el, newVnode.children)
+        }
+      }
+    } else if (type === Fragment) {
+      if (!oldVnode) {
+        newVnode.children.forEach(c => patch(null, c, container))
+      } else {
+        patchChildren(oldVnode, newVnode, container)
+      }
+    } else if (typeof type === 'object') {
+      // 组件
+    }
+  }
+
+  function mountElement(vnode, container) {
+    const el = vnode.el = createElement(vnode.type)
+
+    if (typeof vnode.children === 'string') {
+      setElementText(el, vnode.children)
+    } else if (Array.isArray(vnode.children)) {
+      vnode.children.forEach(child => {
+        patch(null, child, el)
+      })
+    }
+
+    if (vnode.props) {
+      for (const key in vnode.props) {
+        patchProps(el, key, null, vnode.props[key])
+      }
+    }
+
+    insert(el, container)
+  }
+
+  function patchElement(oldVnode, newVnode) {
+    const el = newVnode.el = oldVnode.el
+    const oldProps = oldVnode.props
+    const newProps = newVnode.props
+    // 第一步: 通过patchProps 更新 props
+    for (const key in newProps) {
+      if (newProps[key] !== oldProps[key]) {
+        patchProps(el, key, oldProps[key], newProps[key])
+      }
+    }
+    for (const key in oldProps) {
+      if (!(key in newProps)) {
+        patchProps(el, key, oldProps[key], null)
+      }
+    }
+    // 第二步:更新 children
+    patchChildren(oldVnode, newVnode, el)
+  }
+
+  function patchChildren(oldVnode, newVnode, container) {
+    // 新节点的子节点是文本节点
+    if (typeof newVnode.children === 'string') {
+      if (Array.isArray(oldVnode.children)) {
+        oldVnode.children.forEach(c => unmount(c))
+      }
+      setElementText(container, newVnode.children)
+    // 新节点的子节点是 数组子节点
+    } else if (Array.isArray(newVnode.children)) {
+      const oldChildren = oldVnode.children
+      const newChildren = newVnode.children
+
+      // 用来存储寻找过程中遇到的最大索引值
+      let lastIndex = 0
+
+      // 遍历新的 children
+      for (let i = 0; i < newChildren.length; i++) {
+        const newVNode = newChildren[i]
+        // 遍历旧的 children
+        for (let j = 0; j < oldChildren.length; j++) {
+          const oldVNode = oldChildren[j]
+          // 如果找到了具有相同 key 值的两个节点，则调用patch函数 更新
+          if (newVNode.key === oldVNode.key) {
+            patch(oldVNode, newVNode, container)
+            if (j < lastIndex) {
+              // 如果当前找到的节点在 旧children中的索引小于 最大索引值
+              // 说明该节点对应的真实DOM 需要移动
+              // 移动步骤：
+              // S1 获取 newVNode的前一个vnode，即 prevVNode
+              const prevVNode = newChildren[i - 1]
+              // 如果prevVNode不存在，则说明当前newVNode是 第1个节点不需要移动
+              if (prevVNode) {
+                // S2 由于要把newVNode对应的DOM 移动到prevVNode对应的真实DOM后面
+                // 所以要获取prevVNode对应DOM的下一个兄弟节点，并将其作为锚点
+                // 调用insert把 newVNode对应DOM 插入到锚点元素前面
+                //   也就是prevVNode对应真实DOM 的后面
+                const anchor = prevVNode.el.nextSibling
+                insert(newVNode.el, container, anchor)
+              }
+
+            } else {
+              // 如果当前找到的节点在 旧children中的索引不小于 最大索引
+              // 则 更新lastIndex最大索引值
+              lastIndex = j
+            }
+            break  //这里需要break,跳出旧节点的循环
+          }
+        }
+      }
+     
+    // 新节点的子节点是 null  
+    } else {
+      if (Array.isArray(oldVnode.children)) {
+        oldVnode.children.forEach(c => unmount(c))
+      } else if (typeof oldVnode.children === 'string') {
+        setElementText(container, '')
+      }
+    }
+  }
+
+  function unmount(vnode) {
+    if (vnode.type === Fragment) {
+      vnode.children.forEach(c => unmount(c))
+      return
+    }
+    const parent = vnode.el.parentNode
+    if (parent) {
+      parent.removeChild(vnode.el)
+    }
+  }
+
+ 
+  return {
+    render
+  }
+}
+
+
+const renderer = createRenderer({
+  createElement(tag) {
+    return document.createElement(tag)
+  },
+  setElementText(el, text) {
+    el.textContent = text
+  },
+  insert(el, parent, anchor = null) {
+    parent.insertBefore(el, anchor)
+  },
+
+  createText(text) {
+    return document.createTextNode(text)
+  },
+  setText(el, text) {
+    el.nodeValue = text
+  },
+
+  patchProps(el, key, prevValue, nextValue) {
+    // 特殊处理 事件属性
+    if (/^on/.test(key)) {
+      const invokers = el._vei || (el._vei = {})
+      // 根据事件名称获取 invoker
+      let invoker = invokers[key]
+     // 根据属性名称得到对应的事件名称，例如 onClick ---> click
+      const name = key.slice(2).toLowerCase()
+      if (nextValue) {
+        // 如果没有 invoker，则将一个伪造的invoker 缓存到 el._vei 中
+        if (!invoker) {
+          // 当伪造的事件处理函数执行时，会执行真正的事件处理函数
+          invoker = el._vei[key] = (e) => {
+            // 如果事件处理函数绑定的时间 晚于 事件触发发生的时间，则不执行事件处理函数
+            if (e.timeStamp < invoker.attached) return
+
+            if (Array.isArray(invoker.value)) {
+              invoker.value.forEach(fn => fn(e))
+            } else {
+              invoker.value(e)
+            }
+          }
+          // 将真正的事件处理函数赋值给 invoker.value
+          invoker.value = nextValue
+          // 添加 invoker.attached 属性，存储事件处理函数被绑定的时间
+          invoker.attached = performance.now()
+
+          // 绑定 invoker 作为事件处理函
+          el.addEventListener(name, invoker)
+        } else {
+          //如果 invoker存在，意味着更新，并且只需要更新 invoker.value的值即可
+          invoker.value = nextValue
+        }
+       // 新的事件绑定函数不存在，且之前绑定的invoker存在，则移除绑定  
+      } else if (invoker) {
+        el.removeEventListener(name, invoker)
+      }
+      
+    // 特殊处理 class属性
+    } else if (key === 'class') {
+      el.className = nextValue || ''
+    } else if (shouldSetAsProps(el, key, nextValue)) {
+      const type = typeof el[key]
+       // 特殊处理 布尔类型的DOM Properties
+      if (type === 'boolean' && nextValue === '') {
+        el[key] = true
+      } else {
+        el[key] = nextValue
+      }
+    } else {
+      el.setAttribute(key, nextValue)
+    }
+  }
+})
+
+// 使用部分
+const Fragment = Symbol()
+const oldVnode = {
+  type: 'div',
+  children: [
+    { type: 'p', children: '1', key: 1 },
+    { type: 'p', children: '2', key: 2 },
+    { type: 'p', children: 'hello', key: 3 }
+  ]
+}
+renderer.render(oldVnode, document.querySelector('#app'))
+
+
+const newVnode = {
+  type: 'div',
+  children: [
+    { type: 'p', children: 'world', key: 3 },
+    { type: 'p', children: '1', key: 1 },
+    { type: 'p', children: '2', key: 2 }
+  ]
+}
+
+setTimeout(() => {
+  console.log('update')
+  debugger
+  renderer.render(newVnode, document.querySelector('#app'))
+}, 1500);
+
+
+</script>
