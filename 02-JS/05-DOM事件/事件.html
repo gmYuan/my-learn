@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOM事件</title>
+
+  <style>
+    body {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .parent {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 500px;
+      height: 500px;
+      border: 1px solid green;
+    } 
+    .child {
+      width: 200px;
+      height: 200px;
+      border: 1px solid red;
+    }
+   </style>
+</head>
+
+
+
+
+<body>
+
+  <div id="parent" class="parent">
+    <button id="child" class="child">点我试试</button>
+  </div>
+  
+ 
+  <script>
+    const parent = document.querySelector('#parent');
+    const child = document.querySelector('#child');
+    // 例1
+    // parent.addEventListener('click', event => {
+    //   console.log('父元素点击了');
+    //   // event.stopImmediatePropagation();
+    // }, true);
+
+    // child.addEventListener('click', event => {
+    //   console.log('子元素点击了');
+    // }, false);
+
+    // document.body.addEventListener('click', () => {
+    //   console.log('body被点击了');
+    // }, false);
+
+    // 例2 
+    child.addEventListener('click', event => {
+      console.log('捕获阶段');
+    }, true);
+
+    child.addEventListener('click', event => {
+      console.log('冒泡阶段');
+    }, false);
+
+
+
+    </script>
+
+</body>
+
+
+
+
+  
+
+</html>
