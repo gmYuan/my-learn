@@ -42,7 +42,7 @@
   <script>
     const parent = document.querySelector('#parent');
     const child = document.querySelector('#child');
-    // 例1
+    // 例1 事件模型1
     // parent.addEventListener('click', event => {
     //   console.log('父元素点击了');
     //   // event.stopImmediatePropagation();
@@ -56,14 +56,38 @@
     //   console.log('body被点击了');
     // }, false);
 
-    // 例2 
-    child.addEventListener('click', event => {
-      console.log('捕获阶段');
+    // ----------------------------------
+    // 例2 事件模型2
+    // child.addEventListener('click', event => {
+    //   console.log('捕获阶段');
+    // }, true);
+
+    // child.addEventListener('click', event => {
+    //   console.log('冒泡阶段');
+    // }, false);
+
+    // ----------------------------------
+    // 例3 中止事件传播
+    parent.addEventListener('click', e => {
+      console.log('父元素');
+      e.stopImmediatePropagation();
+    }, true);
+
+    parent.addEventListener('click', e => {
+      console.log('父元素点击2');
+    }, true);
+
+    parent.addEventListener('dblclick', e => {
+      console.log('父元素doubleclick');
     }, true);
 
     child.addEventListener('click', event => {
-      console.log('冒泡阶段');
+      console.log('子元素');
     }, false);
+
+    document.body.addEventListener('click', () => {
+      console.log('body');
+    }, true);
 
 
 
