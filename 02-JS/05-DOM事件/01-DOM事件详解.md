@@ -173,7 +173,7 @@ S3.2 缺点:
   - 不适用于所有事件：并非所有的事件都会冒泡(如focus/blur/鼠标的滚动事件等)，这些事件无法使用事件委托
   - 在某些情况下可能会导致事件 在预期之外的时间触发
 
------------------------------------
+--------------------------------------
 Q2 如何用JS实现 事件委托
 
 A: <br/>
@@ -210,29 +210,95 @@ document.getElementById('list').addEventListener('click', function (e) {
 
 Q1 如何定义/实现一个 自定义事件
 
+A: <br/>
+
+1. 方法1: Event()构造函数
+2. 方法2: CustomEvent()构造函数
+3. 两者区别
+  - Event() 适合创建简单的自定义事件
+  - CustomEvent()支持携带自定义事件的 自定义参数
+
+4. 使用场景
+  - 本质上和观察者模式是相同的，所以能用观察者模式的场景，就可以用 自定义事件
+
+```js
+// 方法1: Event()构造函数
+const myEvent = new Event(eventName = 'myEvent', eventOptions = {
+  bubbles: false,     // 表示该事件是否冒泡
+  cancelable: false,  // 表示该事件能否被取消
+  composed: false,    // 表示事件是否会在shadow DOM根节点之外 触发侦听器
+});
+
+// 事件监听
+window.addEventListener("myEvent", function(e) {
+  console.log('自定义事件触发了')
+})
+
+// 事件触发: 事件可以在任何元素触发
+elementDOM.dispatchEvent(myEvent);
+
+// -------------------------------------
+// 方法2: CustomEvent()构造函数
+let myEvent = new CustomEvent(eventName = 'myEvent',  eventOptions = {
+  detail: { name: 'abc' },  // 表示该事件中 传递的自定义数据
+  bubbles: false,           // 表示该事件是否冒泡
+  cancelable: false,        // 表示该事件能否被取消
+});
+
+// 添加事件监听
+window.addEventListener("myEvent", e => {
+  console.log(`自定义事件触发了，信息是${e.detail.name}`)
+});
+
+// 触发 自定义事件
+element.addEventListener("click", function() {
+    window.dispatchEvent(myEvent);
+  }
+)
+```
+
+-----------------------------------------
+Q2 如何实现once绑定事件
+
+A: <br/>
+
+```js
+// 实现方法1- 封装事件函数
+function once(selector, eventType, callback) {
+  selector.addEventListener(eventType, function fn(e) {
+    e.target.removeEventListener(e.eventType, fn);
+    return callback(e);
+  }, false);
+}
+// 使用方法 once(button, 'click' , function(e){});
+
+// 实现方法2- addEventListener的once选项
+button.addEventListener('click', function (e) {}, {once: true} );
+```
+
+-----------------------------------------------------------
+Q3 添加原生事件不移除为什么会内存泄露，还有哪些情况会存在内存泄漏
+
+A: <br/>
+这部分知识点和内存泄露强相关，后续会在内存泄露文章里进行介绍
+
+
+## 四 React事件
+
+Q1 React组件中如何实现 事件代理，简述 React的事件代理机制
+
+A: <br/>
 
 
 
-
-
-## 参考文档
+## 五 参考文档
 
 [01 深入理解DOM事件机制](https://juejin.cn/post/6844903781969166349)
 
-
-如何实现one绑定事件
-
-添加原生事件不移除为什么会内存泄露，还有哪些地方会存在内存泄漏
-
-移动端的点击事件的有延迟，时间是多久，为什么会有？ 怎么解决这个延时
+[02 JavaScript 自定义事件如此简单](https://juejin.cn/post/6844904069820055560)
 
 
-React 组件中怎么做事件代理？它的原理是什么
-简述下 React 的事件代理机制
 说说React事件和原生事件的执行顺序
 React 的事件代理机制和原生事件绑定有什么区别
 React 的事件代理机制和原生事件绑定混用会有什么问题
 React 中如果绑定事件使用匿名函数有什么影响
-
-
-
