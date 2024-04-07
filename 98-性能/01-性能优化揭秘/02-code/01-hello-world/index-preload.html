@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="preload" as="image" href="https://p1.music.126.net/aolHExjd1O1D-1MZcAEPyQ==/109951166361167293.jpg?param=170y170">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World</title>
+    <script>
+        window.LOAD_DATA = (data) => {
+            const {
+                title,
+                url,
+            } = data;
+
+            document.body.innerHTML = `<h1>${title}</h1><img src="${url}"></img>`;
+        }
+        const tag = document.createElement('script');
+        tag.src = 'https://cdn.jsdelivr.net/gh/xcodebuild/perfdemo@master/hello-world/api.jsonp.js';
+        document.head.appendChild(tag);
+    </script>
+</head>
+<body>
+   Loading...
+</body>
+</html>
